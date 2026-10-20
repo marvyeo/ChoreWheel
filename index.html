@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ChoreWheel</title>
+<meta name="theme-color" content="#0F1417">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{
+  --bg:#0F1417; --surface:#161D21; --card:#1C252A; --line:#2A353B; --text:#E9EEF0; --muted:#8C9AA1; --faint:#5E6B71;
+  --accent:#3FC1A5; --accent-ink:#06231C; --warn:#F2B84B; --bad:#F07167; --marvin:#6EA8FE; --caroline:#E58FD0; --either:#9AA5AB;
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.wrap{max-width:640px;margin:0 auto;padding:0 16px calc(96px + env(safe-area-inset-bottom))}
+header.top{position:sticky;top:0;z-index:20;background:rgba(15,20,23,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top)) 0 10px}
+header.top .wrap{padding-bottom:0;display:flex;align-items:center;gap:10px}
+.logo{font-weight:750;font-size:19px;letter-spacing:-.01em}
+.logo b{color:var(--accent)}
+.sub{color:var(--muted);font-size:12.5px}
+.grow{flex:1}
+.pill{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px}
+.pill.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:650}
+.filters{display:flex;gap:6px;overflow-x:auto;padding:12px 0 4px;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 4px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.stat .n{font-size:22px;font-weight:750}
+.stat .l{font-size:12px;color:var(--muted)}
+.stat.bad .n{color:var(--bad)} .stat.warn .n{color:var(--warn)}
+h2.sec{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:22px 4px 8px;display:flex;gap:8px;align-items:center}
+h2.sec .cnt{background:var(--card);border-radius:999px;padding:1px 8px;font-size:11px;letter-spacing:0}
+h2.sec.bad{color:var(--bad)}
+.list{display:flex;flex-direction:column;gap:8px}
+.chore{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;position:relative}
+.chore.overdue{border-color:rgba(240,113,103,.45)}
+.chore.today{border-color:rgba(242,184,75,.45)}
+.check{width:34px;height:34px;flex:none;border-radius:50%;border:2px solid var(--faint);background:transparent;display:grid;place-items:center;transition:.15s}
+.check:hover{border-color:var(--accent)}
+.check svg{opacity:0;width:18px;height:18px}
+.check.done{background:var(--accent);border-color:var(--accent)} .check.done svg{opacity:1}
+.cbody{flex:1;min-width:0}
+.cname{font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmeta{font-size:12.5px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:2px}
+.due-bad{color:var(--bad);font-weight:600} .due-warn{color:var(--warn);font-weight:600}
+.who{display:inline-flex;align-items:center;gap:4px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.more{background:none;border:none;color:var(--faint);padding:8px;border-radius:10px;font-size:18px;line-height:1}
+.more:hover{color:var(--text);background:var(--card)}
+.empty{color:var(--muted);text-align:center;padding:40px 10px}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(22,29,33,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabbar .wrap{display:flex;padding:0 8px;gap:4px}
+.tab{flex:1;background:none;border:none;color:var(--muted);padding:10px 4px 8px;font-size:11.5px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.tab.on{color:var(--accent)}
+.tab svg{width:22px;height:22px}
+.fab{position:fixed;right:max(16px,calc(50% - 304px));bottom:calc(76px + env(safe-area-inset-bottom));z-index:31;width:54px;height:54px;border-radius:50%;background:var(--accent);color:var(--accent-ink);border:none;font-size:30px;font-weight:300;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;display:none;align-items:flex-end;justify-content:center}
+.sheet-bg.show{display:flex}
+.sheet{background:var(--surface);border:1px solid var(--line);border-bottom:none;border-radius:20px 20px 0 0;width:100%;max-width:640px;max-height:92vh;overflow:auto;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+.sheet h3{margin:0 0 14px;font-size:18px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
+.in{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+.in:focus{border-color:var(--accent)}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+.seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;border:none;background:none;border-radius:8px;padding:8px 4px;font-size:13px;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 0 var(--line)}
+.btn{border:none;border-radius:11px;padding:11px 16px;font-weight:620}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:var(--card);border:1px solid var(--line)}
+.btn.danger{background:none;color:var(--bad);border:1px solid rgba(240,113,103,.4)}
+.btn.block{width:100%}
+.actions{display:flex;gap:8px;margin-top:16px}
+.actions .btn{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px dashed var(--line);background:none;border-radius:999px;padding:6px 11px;font-size:13px;color:var(--muted)}
+.chip:hover{color:var(--text);border-color:var(--accent)}
+.hint{font-size:12px;color:var(--faint);margin-top:5px}
+.log-day{font-size:12px;color:var(--muted);margin:16px 4px 6px}
+.log{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:6px;font-size:14px}
+.log .x{margin-left:auto;background:none;border:none;color:var(--faint);font-size:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:12px}
+.card h4{margin:0 0 8px;font-size:15px}
+.card p{margin:0 0 10px;color:var(--muted);font-size:13.5px}
+.toast{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;background:#24313A;border:1px solid var(--line);color:var(--text);padding:10px 14px;border-radius:12px;font-size:14px;z-index:60;transition:.2s;display:flex;gap:12px;align-items:center;max-width:calc(100vw - 32px)}
+.toast.show{opacity:1;transform:translateX(-50%);pointer-events:auto}
+.toast button{background:none;border:none;color:var(--accent);font-weight:650}
+.status{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.status.ok{background:var(--accent)} .status.err{background:var(--bad)} .status.busy{background:var(--warn)}
+#auth{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}
+#auth .box{max-width:360px;width:100%;text-align:center}
+#auth .big{font-size:44px;margin-bottom:6px}
+#auth h1{margin:0 0 6px;font-size:28px}
+#auth p{color:var(--muted);margin:0 0 20px}
+.whobtn{display:block;width:100%;margin-bottom:10px}
+.bar{height:6px;background:var(--card);border-radius:4px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<div id="auth">
+  <div class="box" id="auth-box">
+    <div class="big">🧽</div>
+    <h1>Chore<b style="color:var(--accent)">Wheel</b></h1>
+    <p>The household chore checklist for Marvin &amp; Caroline. Saved to Google Drive.</p>
+    <button class="btn primary block" id="signin-btn" onclick="handleSignIn()" disabled style="opacity:.6">Loading…</button>
+    <p id="auth-msg" style="margin-top:14px;font-size:13px"></p>
+  </div>
+</div>
+
+<header class="top">
+  <div class="wrap">
+    <div>
+      <div class="logo">Chore<b>Wheel</b></div>
+      <div class="sub" id="today-label"></div>
+    </div>
+    <div class="grow"></div>
+    <span class="status" id="sync-dot" title="Drive sync"></span>
+  </div>
+</header>
+
+<main class="wrap" id="main"></main>
+
+<button class="fab" id="fab" onclick="openEditor()" aria-label="Add chore">+</button>
+
+<nav class="tabbar"><div class="wrap">
+  <button class="tab on" data-tab="list" onclick="setTab('list')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>To do</button>
+  <button class="tab" data-tab="all" onclick="setTab('all')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>All chores</button>
+  <button class="tab" data-tab="history" onclick="setTab('history')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>History</button>
+  <button class="tab" data-tab="settings" onclick="setTab('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+</div></nav>
+
+<div class="sheet-bg" id="sheet-bg" onclick="if(event.target===this)closeSheet()"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"><span id="toast-msg"></span><button id="toast-btn" class="hidden"></button></div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
+<script>
+/* ================== CONFIG ================== */
+const CLIENT_ID = '669494100250-gvromuq72r7j0djmkd4vdbdq5damncj7.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_FILE = 'chorewheel-data.json';
+const APP_URL = 'https://marvyeo.github.io/ChoreWheel/';
+const PICKER_API_KEY = 'AIzaSyAHadhdBv8qOsaD91L6l4V74AF38LZVCFY';  // same browser key as Financial Planner (restricted to marvyeo.github.io)
+const GCP_APP_ID = '669494100250';
+const API = 'https://www.googleapis.com/drive/v3/files';
+const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
+const PEOPLE = { marvin: { label: 'Marvin', color: 'var(--marvin)' }, caroline: { label: 'Caroline', color: 'var(--caroline)' }, either: { label: 'Either', color: 'var(--either)' } };
+const DEMO = new URLSearchParams(location.search).has('demo');
+
+const LS = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }, del: k => { try { localStorage.removeItem(k); } catch (e) {} } };
+
+/* ================== DATES (local, YYYY-MM-DD) ================== */
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const today = () => iso(new Date());
+const daysBetween = (a, b) => Math.round((parse(b) - parse(a)) / 86400000);
+function addInterval(dateIso, every, unit) {
+  const d = parse(dateIso);
+  if (unit === 'day') d.setDate(d.getDate() + every);
+  else if (unit === 'week') d.setDate(d.getDate() + 7 * every);
+  else if (unit === 'month' || unit === 'year') {
+    const months = unit === 'year' ? 12 * every : every;
+    const day = d.getDate();
+    d.setDate(1); d.setMonth(d.getMonth() + months);
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, last));
+  }
+  return iso(d);
+}
+function fmtDate(s) { return parse(s).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: parse(s).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined }); }
+function relDue(s) {
+  const n = daysBetween(today(), s);
+  if (n < -1) return { text: `${-n} days overdue`, cls: 'due-bad' };
+  if (n === -1) return { text: 'Overdue since yesterday', cls: 'due-bad' };
+  if (n === 0) return { text: 'Due today', cls: 'due-warn' };
+  if (n === 1) return { text: 'Due tomorrow', cls: '' };
+  if (n < 7) return { text: `Due ${parse(s).toLocaleDateString('en-SG', { weekday: 'long' })}`, cls: '' };
+  return { text: `Due ${fmtDate(s)}`, cls: '' };
+}
+function ago(s) {
+  const n = daysBetween(s, today());
+  if (n <= 0) return 'today'; if (n === 1) return 'yesterday';
+  if (n < 30) return `${n} days ago`; if (n < 365) return `${Math.round(n / 30)} mo ago`;
+  return `${(n / 365).toFixed(1)} yr ago`;
+}
+function freqLabel(f) {
+  if (!f || f.unit === 'asneeded') return 'As needed';
+  const n = f.every || 1, u = f.unit;
+  const named = { '1week': 'Weekly', '2week': 'Fortnightly', '1month': 'Monthly', '3month': 'Quarterly', '6month': 'Every 6 months', '1year': 'Yearly', '1day': 'Daily' };
+  return named[n + u] || `Every ${n} ${u}${n > 1 ? 's' : ''}`;
+}
+
+/* ================== DATA ================== */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function seedChores() {
+  const t = today();
+  const c = (name, area, unit, every, assignee, firstDue) => ({ id: uid(), name, area, freq: { unit, every }, assignee, lastDone: null, firstDue: firstDue || t, notes: '', createdAt: t });
+  return [
+    c('Clean sink', 'Kitchen', 'week', 1, 'either'),
+    c('Start robovac', 'Home', 'week', 1, 'either'),
+    c('Washing clothes', 'Laundry', 'asneeded', 1, 'either'),
+    c('Ironing', 'Laundry', 'asneeded', 1, 'either'),
+    c('Aircon servicing', 'Home', 'month', 3, 'marvin', addInterval(t, 14, 'day')),
+    c('Rotate car tyres', 'Car', 'month', 6, 'marvin', addInterval(t, 30, 'day')),
+  ];
+}
+const SUGGESTIONS = [
+  ['Change bedsheets', 'Bedroom', 'week', 2], ['Clean toilets', 'Bathroom', 'week', 1], ['Mop floors', 'Home', 'week', 1],
+  ['Take out recycling', 'Home', 'week', 1], ['Wipe down fridge', 'Kitchen', 'month', 1], ['Empty robovac bin & brushes', 'Home', 'week', 2],
+  ['Descale kettle', 'Kitchen', 'month', 3], ['Replace water filter', 'Kitchen', 'month', 3], ['Clean washing machine', 'Laundry', 'month', 1],
+  ['Wash curtains', 'Home', 'year', 1], ['Car servicing', 'Car', 'year', 1], ['Road tax renewal', 'Car', 'year', 1],
+  ['Car wash', 'Car', 'week', 2], ['Sanitise toys', 'Cobae', 'week', 1], ['Clean range hood filter', 'Kitchen', 'month', 3],
+];
+function emptyData() {
+  return { app: 'chorewheel', version: 1, chores: seedChores(), log: [], settings: { household: { members: [] } }, upcoming: [] };
+}
+let data = null, ME = { email: '', who: null };
+
+function nextDue(c) {
+  if (!c.freq || c.freq.unit === 'asneeded') return null;
+  let d = c.lastDone ? addInterval(c.lastDone, c.freq.every || 1, c.freq.unit) : (c.firstDue || today());
+  if (c.snoozedUntil) d = c.snoozedUntil;   // manual date or snooze; cleared when the chore is ticked
+  return d;
+}
+function activeChores() { return data.chores.filter(c => !c.archived); }
+
+/* ---- upcoming[] for Life Plan (recomputed on every save) ---- */
+function buildUpcoming() {
+  const t = today(), horizon = addInterval(t, 30, 'day');
+  data.upcoming = activeChores().map(c => ({ c, d: nextDue(c) })).filter(x => x.d && x.d <= horizon).map(({ c, d }) => ({
+    label: `${c.name}${c.assignee !== 'either' ? ' — ' + PEOPLE[c.assignee].label : ''}${d < t ? ' (overdue)' : ''}`,
+    date: d < t ? t : d, type: 'chore', app: 'chorewheel', priority: d < t ? 'high' : 'normal', url: APP_URL,
+  })).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/* ================== RENDER ================== */
+let TAB = 'list', FILTER = LS.get('cw-filter') || 'all';
+function setTab(t) {
+  TAB = t; document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  document.getElementById('fab').classList.toggle('hidden', t === 'history' || t === 'settings');
+  render(); window.scrollTo(0, 0);
+}
+function setFilter(f) { FILTER = f; LS.set('cw-filter', f); render(); }
+const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+function matchesFilter(c) { return FILTER === 'all' || c.assignee === FILTER || c.assignee === 'either'; }
+
+function choreRow(c, opts = {}) {
+  const d = nextDue(c), t = today();
+  const due = d ? relDue(d) : null;
+  const p = PEOPLE[c.assignee] || PEOPLE.either;
+  const cls = d && d < t ? 'overdue' : d === t ? 'today' : '';
+  const meta = [
+    due ? `<span class="${due.cls}">${due.text}</span>` : `<span>${c.lastDone ? 'Last done ' + ago(c.lastDone) : 'Not done yet'}</span>`,
+    `<span>· ${freqLabel(c.freq)}</span>`,
+    `<span class="who">· <span class="dot" style="background:${p.color}"></span>${p.label}</span>`,
+  ];
+  if (opts.showLast && c.lastDone && due) meta.push(`<span>· last ${ago(c.lastDone)}</span>`);
+  return `<div class="chore ${cls}" id="c-${c.id}">
+    <button class="check" aria-label="Mark ${esc(c.name)} done" onclick="markDone('${c.id}', this)"><svg viewBox="0 0 24 24" fill="none" stroke="#06231C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></button>
+    <div class="cbody" onclick="openEditor('${c.id}')"><div class="cname">${esc(c.name)}</div><div class="cmeta">${meta.join('')}</div></div>
+    <button class="more" aria-label="Options" onclick="openEditor('${c.id}')">⋯</button>
+  </div>`;
+}
+function section(title, items, opts = {}) {
+  if (!items.length) return '';
+  return `<h2 class="sec ${opts.cls || ''}">${title}<span class="cnt">${items.length}</span></h2><div class="list">${items.map(c => choreRow(c, opts)).join('')}</div>`;
+}
+function filterBar() {
+  return `<div class="filters">${[['all', 'Everyone'], ['marvin', 'Marvin'], ['caroline', 'Caroline']].map(([k, l]) => `<button class="pill ${FILTER === k ? 'on' : ''}" onclick="setFilter('${k}')">${l}</button>`).join('')}</div>`;
+}
+function renderList() {
+  const t = today(), wk = addInterval(t, 7, 'day'), mo = addInterval(t, 31, 'day');
+  const cs = activeChores().filter(matchesFilter).map(c => ({ c, d: nextDue(c) }));
+  const by = (a, b) => a.d.localeCompare(b.d) || a.c.name.localeCompare(b.c.name);
+  const overdue = cs.filter(x => x.d && x.d < t).sort(by).map(x => x.c);
+  const todayL = cs.filter(x => x.d === t).sort(by).map(x => x.c);
+  const week = cs.filter(x => x.d && x.d > t && x.d <= wk).sort(by).map(x => x.c);
+  const month = cs.filter(x => x.d && x.d > wk && x.d <= mo).sort(by).map(x => x.c);
+  const asneeded = cs.filter(x => !x.d).map(x => x.c).sort((a, b) => (a.lastDone || '').localeCompare(b.lastDone || ''));
+  const doneToday = data.log.filter(l => l.date === t && !l.deleted).length;
+  let h = filterBar();
+  h += `<div class="summary"><div class="stat ${overdue.length ? 'bad' : ''}"><div class="n">${overdue.length}</div><div class="l">Overdue</div></div><div class="stat ${todayL.length ? 'warn' : ''}"><div class="n">${todayL.length + week.length}</div><div class="l">Next 7 days</div></div><div class="stat"><div class="n">${doneToday}</div><div class="l">Done today</div></div></div>`;
+  if (!overdue.length && !todayL.length && !week.length) h += `<div class="empty">🎉 Nothing due this week.</div>`;
+  h += section('Overdue', overdue, { cls: 'bad' }) + section('Today', todayL) + section('This week', week) + section('Later this month', month) + section('As needed', asneeded);
+  return h;
+}
+function renderAll() {
+  const cs = activeChores().filter(matchesFilter);
+  const order = c => { const d = nextDue(c); return d ? 0 : 1; };
+  const groups = {};
+  cs.forEach(c => { const k = c.area || 'Other'; (groups[k] = groups[k] || []).push(c); });
+  let h = filterBar();
+  if (!cs.length) return h + `<div class="empty">No chores yet. Tap + to add one.</div>`;
+  Object.keys(groups).sort().forEach(k => {
+    h += section(esc(k), groups[k].sort((a, b) => order(a) - order(b) || (nextDue(a) || '').localeCompare(nextDue(b) || '') || a.name.localeCompare(b.name)), { showLast: true });
+  });
+  const arch = data.chores.filter(c => c.archived);
+  if (arch.length) h += `<h2 class="sec">Archived<span class="cnt">${arch.length}</span></h2><div class="list">${arch.map(c => `<div class="chore" style="opacity:.6"><div class="cbody"><div class="cname">${esc(c.name)}</div><div class="cmeta">${freqLabel(c.freq)}</div></div><button class="btn ghost" onclick="restoreChore('${c.id}')">Restore</button></div>`).join('')}</div>`;
+  return h;
+}
+function renderHistory() {
+  const logs = data.log.filter(l => !l.deleted).sort((a, b) => b.date.localeCompare(a.date) || (b.at || 0) - (a.at || 0));
+  const name = id => (data.chores.find(c => c.id === id) || {}).name || 'Removed chore';
+  const mStart = today().slice(0, 7);
+  const thisMonth = logs.filter(l => l.date.startsWith(mStart));
+  const cnt = w => thisMonth.filter(l => l.by === w).length;
+  const tot = Math.max(1, thisMonth.length);
+  let h = `<div class="card"><h4>This month</h4><p>${thisMonth.length} chore${thisMonth.length !== 1 ? 's' : ''} done</p>
+    ${['marvin', 'caroline'].map(w => `<div style="display:flex;justify-content:space-between;font-size:13.5px;margin-top:8px"><span class="who"><span class="dot" style="background:${PEOPLE[w].color}"></span>${PEOPLE[w].label}</span><span>${cnt(w)}</span></div><div class="bar"><i style="width:${cnt(w) / tot * 100}%;background:${PEOPLE[w].color}"></i></div>`).join('')}</div>`;
+  if (!logs.length) return h + `<div class="empty">Ticked-off chores show up here.</div>`;
+  let last = '';
+  logs.slice(0, 300).forEach(l => {
+    if (l.date !== last) { last = l.date; h += `<div class="log-day">${parse(l.date).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</div>`; }
+    const p = PEOPLE[l.by] || PEOPLE.either;
+    h += `<div class="log"><span class="dot" style="background:${p.color}"></span><span>${esc(name(l.choreId))}</span><span style="color:var(--muted);font-size:12.5px">${p.label}</span><button class="x" onclick="deleteLog('${l.id}')">Remove</button></div>`;
+  });
+  return h;
+}
+function renderSettings() {
+  const hh = data.settings.household || {};
+  const members = (hh.members || []).map(m => `<div style="font-size:13.5px;margin:4px 0">${esc(PEOPLE[m.who]?.label || m.who)} · <span style="color:var(--muted)">${esc(m.email)}</span></div>`).join('');
+  return `
+  <div class="card"><h4>You are</h4><p>Ticks you make are recorded under this name.</p>
+    <div class="seg">${['marvin', 'caroline'].map(w => `<button class="${ME.who === w ? 'on' : ''}" onclick="setMe('${w}')">${PEOPLE[w].label}</button>`).join('')}</div></div>
+  <div class="card"><h4>Household</h4><p>Share the chore list so both of you tick off the same list from your own phones.</p>
+    ${members}
+    <div class="row" style="margin-top:10px"><input class="in" id="share-email" type="email" placeholder="Partner's Gmail address"><button class="btn primary" style="flex:none" onclick="shareHousehold()">Share</button></div>
+    <div class="hint">They open ${esc(APP_URL)}, sign in, and choose “Open the shared list”.</div></div>
+  <div class="card"><h4>Suggested chores</h4><p>Tap to add.</p><div class="chips">${SUGGESTIONS.filter(s => !data.chores.some(c => c.name.toLowerCase() === s[0].toLowerCase())).map((s, i) => `<button class="chip" onclick="addSuggestion(${SUGGESTIONS.indexOf(s)})">+ ${esc(s[0])} <span style="opacity:.6">· ${freqLabel({ unit: s[2], every: s[3] })}</span></button>`).join('') || '<span class="hint">All added.</span>'}</div></div>
+  <div class="card"><h4>Data</h4><p>Stored in your Google Drive as <code>${DRIVE_FILE}</code>. Life Plan reads its reminders from there.</p>
+    <div class="row"><button class="btn ghost" onclick="exportJson()">Export JSON</button>${DEMO ? '' : '<button class="btn ghost" onclick="signOut()">Sign out</button>'}</div></div>
+  <p class="hint" style="text-align:center;margin-top:18px">ChoreWheel v1.0 · ${esc(ME.email || (DEMO ? 'demo mode' : ''))}</p>`;
+}
+function render() {
+  document.getElementById('today-label').textContent = new Date().toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' });
+  const m = document.getElementById('main');
+  m.innerHTML = TAB === 'list' ? renderList() : TAB === 'all' ? renderAll() : TAB === 'history' ? renderHistory() : renderSettings();
+}
+
+/* ================== ACTIONS ================== */
+let undoFn = null;
+function toast(msg, btnLabel, fn) {
+  const t = document.getElementById('toast'), b = document.getElementById('toast-btn');
+  document.getElementById('toast-msg').textContent = msg;
+  undoFn = fn || null; b.classList.toggle('hidden', !fn); b.textContent = btnLabel || '';
+  b.onclick = () => { const f = undoFn; undoFn = null; t.classList.remove('show'); f && f(); };
+  t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), fn ? 5000 : 2500);
+}
+function markDone(id, btn, dateIso) {
+  const c = data.chores.find(x => x.id === id); if (!c) return;
+  if (!ME.who) { askWho(() => markDone(id, btn, dateIso)); return; }
+  const d = dateIso || today();
+  const prev = { lastDone: c.lastDone, snoozedUntil: c.snoozedUntil };
+  const entry = { id: uid(), choreId: id, date: d, by: ME.who, at: Date.now() };
+  data.log.push(entry);
+  if (!c.lastDone || d >= c.lastDone) c.lastDone = d;
+  delete c.snoozedUntil;
+  if (btn) btn.classList.add('done');
+  setTimeout(() => { render(); save(); }, btn ? 350 : 0);
+  const nd = nextDue(c);
+  toast(`✓ ${c.name}${nd ? ' · next ' + fmtDate(nd) : ''}`, 'Undo', () => {
+    entry.deleted = true; c.lastDone = prev.lastDone; if (prev.snoozedUntil) c.snoozedUntil = prev.snoozedUntil;
+    c.lastDone = recomputeLastDone(c.id) ?? prev.lastDone; render(); save();
+  });
+}
+function recomputeLastDone(id) {
+  const ds = data.log.filter(l => l.choreId === id && !l.deleted).map(l => l.date).sort();
+  return ds.length ? ds[ds.length - 1] : null;
+}
+function deleteLog(lid) {
+  const l = data.log.find(x => x.id === lid); if (!l) return;
+  l.deleted = true;
+  const c = data.chores.find(x => x.id === l.choreId); if (c) c.lastDone = recomputeLastDone(c.id);
+  render(); save();
+  toast('Removed from history', 'Undo', () => { l.deleted = false; if (c) c.lastDone = recomputeLastDone(c.id); render(); save(); });
+}
+function snooze(id, days) {
+  const c = data.chores.find(x => x.id === id); if (!c) return;
+  c.snoozedUntil = addInterval(today(), days, 'day'); closeSheet(); render(); save();
+  toast(`Snoozed to ${fmtDate(c.snoozedUntil)}`);
+}
+function archiveChore(id) {
+  const c = data.chores.find(x => x.id === id); if (!c) return;
+  c.archived = true; closeSheet(); render(); save();
+  toast(`Archived “${c.name}”`, 'Undo', () => { c.archived = false; render(); save(); });
+}
+function restoreChore(id) { const c = data.chores.find(x => x.id === id); if (c) { c.archived = false; render(); save(); } }
+function addSuggestion(i) {
+  const [name, area, unit, every] = SUGGESTIONS[i];
+  data.chores.push({ id: uid(), name, area, freq: { unit, every }, assignee: 'either', lastDone: null, firstDue: today(), notes: '', createdAt: today() });
+  render(); save(); toast(`Added “${name}”`);
+}
+function setMe(w) {
+  ME.who = w; LS.set('cw-who', w);
+  if (ME.email) {
+    const hh = data.settings.household; hh.members = (hh.members || []).filter(m => m.email !== ME.email); hh.members.push({ email: ME.email, who: w }); save();
+  }
+  render();
+}
+function askWho(then) {
+  openSheet(`<h3>Who's ticking chores on this phone?</h3><p class="hint" style="margin-bottom:14px">Asked once per device.</p>
+    ${['marvin', 'caroline'].map(w => `<button class="btn ghost whobtn" onclick="setMe('${w}');closeSheet();window.__afterWho&&window.__afterWho()"><span class="dot" style="background:${PEOPLE[w].color}"></span> ${PEOPLE[w].label}</button>`).join('')}`);
+  window.__afterWho = then || null;
+}
+function exportJson() {
+  buildUpcoming();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  a.download = `chorewheel-${today()}.json`; a.click();
+}
+
+/* ---- editor sheet ---- */
+let ED = null;
+function openSheet(html) { document.getElementById('sheet').innerHTML = html; document.getElementById('sheet-bg').classList.add('show'); }
+function closeSheet() { document.getElementById('sheet-bg').classList.remove('show'); ED = null; }
+function openEditor(id) {
+  const c = id ? data.chores.find(x => x.id === id) : null;
+  ED = c ? JSON.parse(JSON.stringify(c)) : { id: null, name: '', area: '', freq: { unit: 'week', every: 1 }, assignee: 'either', lastDone: null, firstDue: today(), notes: '' };
+  const areas = [...new Set(data.chores.map(x => x.area).filter(Boolean))].sort();
+  const u = ED.freq.unit;
+  const preset = u === 'asneeded' ? 'asneeded' : ({ '1week': 'weekly', '2week': 'fortnightly', '1month': 'monthly', '3month': 'quarterly', '1year': 'yearly' }[(ED.freq.every || 1) + u] || 'custom');
+  const recent = c ? data.log.filter(l => l.choreId === c.id && !l.deleted).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3) : [];
+  openSheet(`
+    <h3>${c ? 'Edit chore' : 'New chore'}</h3>
+    ${c ? `<div class="row" style="margin-bottom:14px"><button class="btn primary" onclick="closeSheet();markDone('${c.id}')">✓ Done today</button><button class="btn ghost" onclick="doneOnDate('${c.id}')">Done on…</button></div>` : ''}
+    <div class="field"><label>Chore</label><input class="in" id="e-name" value="${esc(ED.name)}" placeholder="e.g. Clean sink" autocomplete="off"></div>
+    <div class="field"><label>How often</label>
+      <select class="in" id="e-preset" onchange="edPreset(this.value)">
+        ${[['weekly', 'Weekly'], ['fortnightly', 'Fortnightly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly (every 3 months)'], ['yearly', 'Yearly'], ['custom', 'Custom…'], ['asneeded', 'As needed (no schedule)']].map(([k, l]) => `<option value="${k}" ${preset === k ? 'selected' : ''}>${l}</option>`).join('')}
+      </select>
+      <div class="row ${preset === 'custom' ? '' : 'hidden'}" id="e-custom" style="margin-top:8px">
+        <input class="in" id="e-every" type="number" min="1" value="${ED.freq.every || 1}">
+        <select class="in" id="e-unit">${['day', 'week', 'month', 'year'].map(x => `<option value="${x}" ${u === x ? 'selected' : ''}>${x}s</option>`).join('')}</select>
+      </div></div>
+    <div class="field"><label>Who usually does it</label><div class="seg" id="e-who">${['marvin', 'caroline', 'either'].map(w => `<button type="button" class="${ED.assignee === w ? 'on' : ''}" onclick="ED.assignee='${w}';[...this.parentNode.children].forEach(b=>b.classList.toggle('on',b===this))">${PEOPLE[w].label}</button>`).join('')}</div></div>
+    <div class="row">
+      <div class="field"><label>Area</label><input class="in" id="e-area" list="areas" value="${esc(ED.area)}" placeholder="Kitchen, Car…"><datalist id="areas">${areas.map(a => `<option value="${esc(a)}">`).join('')}</datalist></div>
+      <div class="field ${preset === 'asneeded' ? 'hidden' : ''}" id="e-due-wrap"><label>${ED.lastDone ? 'Next due' : 'First due'}</label><input class="in" id="e-due" type="date" value="${nextDue(ED) || today()}"></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea class="in" id="e-notes" rows="2" placeholder="Vendor phone, which filter to buy…">${esc(ED.notes || '')}</textarea></div>
+    ${recent.length ? `<div class="hint" style="margin-bottom:6px">Recently: ${recent.map(l => `${fmtDate(l.date)} (${PEOPLE[l.by]?.label || '?'})`).join(' · ')}</div>` : ''}
+    <div class="actions"><button class="btn ghost" onclick="closeSheet()">Cancel</button><button class="btn primary" onclick="saveEditor()">Save</button></div>
+    ${c && preset !== 'asneeded' ? `<div class="row" style="margin-top:10px"><button class="btn ghost" onclick="snooze('${c.id}',1)">Snooze 1 day</button><button class="btn ghost" onclick="snooze('${c.id}',7)">Snooze 1 week</button></div>` : ''}
+    ${c ? `<button class="btn danger block" style="margin-top:10px" onclick="archiveChore('${c.id}')">Archive chore</button>` : ''}
+  `);
+  if (!c) setTimeout(() => document.getElementById('e-name').focus(), 50);
+}
+function edPreset(v) {
+  document.getElementById('e-custom').classList.toggle('hidden', v !== 'custom');
+  document.getElementById('e-due-wrap').classList.toggle('hidden', v === 'asneeded');
+}
+function saveEditor() {
+  const name = document.getElementById('e-name').value.trim();
+  if (!name) { document.getElementById('e-name').focus(); return; }
+  const preset = document.getElementById('e-preset').value;
+  const map = { weekly: ['week', 1], fortnightly: ['week', 2], monthly: ['month', 1], quarterly: ['month', 3], yearly: ['year', 1], asneeded: ['asneeded', 1] };
+  const [unit, every] = preset === 'custom' ? [document.getElementById('e-unit').value, Math.max(1, parseInt(document.getElementById('e-every').value) || 1)] : map[preset];
+  const due = document.getElementById('e-due').value || today();
+  const fields = { name, area: document.getElementById('e-area').value.trim(), freq: { unit, every }, assignee: ED.assignee, notes: document.getElementById('e-notes').value.trim() };
+  let c = ED.id ? data.chores.find(x => x.id === ED.id) : null;
+  if (!c) { c = { id: uid(), lastDone: null, createdAt: today() }; data.chores.push(c); }
+  Object.assign(c, fields);
+  // Due date: never-done chores start on it; otherwise it overrides the schedule until the next tick
+  delete c.snoozedUntil;
+  if (unit !== 'asneeded') {
+    if (!c.lastDone) c.firstDue = due;
+    else if (due !== nextDue(c)) c.snoozedUntil = due;
+  }
+  closeSheet(); render(); save(); toast(`Saved “${name}”`);
+}
+function doneOnDate(id) {
+  const c = data.chores.find(x => x.id === id);
+  openSheet(`<h3>When was “${esc(c.name)}” done?</h3><div class="field"><input class="in" type="date" id="d-date" value="${today()}" max="${today()}"></div>
+    <div class="actions"><button class="btn ghost" onclick="openEditor('${id}')">Back</button><button class="btn primary" onclick="const v=document.getElementById('d-date').value;closeSheet();markDone('${id}',null,v)">Save</button></div>`);
+}
+
+/* ================== GOOGLE AUTH + DRIVE ================== */
+let tokenClient, accessToken = null, fileId = null, fileVersion = null, BASE = null, SAVING = false, SAVE_AGAIN = false;
+function savedToken() { try { return JSON.parse(LS.get('cw-token') || 'null'); } catch (e) { return null; } }
+function initAuth() {
+  if (DEMO) { startDemo(); return; }
+  if (typeof google === 'undefined' || !google.accounts || typeof gapi === 'undefined') { setTimeout(initAuth, 120); return; }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID, scope: SCOPES,
+    callback: r => {
+      if (r.error) { authMsg('Sign-in was cancelled. Tap to try again.'); return; }
+      accessToken = r.access_token;
+      LS.set('cw-token', JSON.stringify({ t: accessToken, exp: Date.now() + (Number(r.expires_in) || 3599) * 1000, email: (savedToken() || {}).email || '' }));
+      onSignedIn();
+    },
+  });
+  const tok = savedToken();
+  if (tok && tok.t && tok.exp > Date.now() + 60000) { accessToken = tok.t; onSignedIn(); return; }
+  authMsg('');
+}
+function handleSignIn() {
+  const tok = savedToken();
+  document.getElementById('signin-btn').textContent = 'Connecting…';
+  tokenClient.requestAccessToken(tok && tok.email ? { prompt: '', login_hint: tok.email } : { prompt: 'consent' });
+}
+function authMsg(m) {
+  document.getElementById('auth').classList.remove('hidden');
+  const b = document.getElementById('signin-btn'); b.disabled = false; b.style.opacity = 1;
+  const tok = savedToken(); b.textContent = tok && tok.email ? 'Continue as ' + tok.email : 'Sign in with Google';
+  document.getElementById('auth-msg').textContent = m || '';
+}
+function signOut() {
+  try { if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {}); } catch (e) {}
+  LS.del('cw-token'); LS.del('cw-file'); location.reload();
+}
+async function dfetch(url, opts = {}) {
+  const res = await fetch(url, { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${accessToken}` } });
+  if (res.status === 401) {
+    const tok = savedToken(); if (tok) { tok.exp = 0; LS.set('cw-token', JSON.stringify(tok)); }
+    authMsg('Your Google session timed out. Tap to continue — nothing is lost.');
+    const e = new Error('session'); e.session = true; throw e;
+  }
+  if (!res.ok) throw new Error(`Drive ${res.status}`);
+  return res;
+}
+async function onSignedIn() {
+  try {
+    const me = await (await dfetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)')).json();
+    ME.email = (me.user?.emailAddress || '').toLowerCase();
+    const tok = savedToken() || {}; tok.email = ME.email; LS.set('cw-token', JSON.stringify(tok));
+    const f = await findFile();
+    if (!f) { showJoin(); return; }
+    await openFile(f.id);
+    enterApp();
+  } catch (e) { if (!e.session) { console.error(e); authMsg('Could not reach Google Drive. Check your connection and try again.'); } }
+}
+async function findFile() {
+  const remembered = LS.get('cw-file');
+  if (remembered) {
+    try { const j = await (await dfetch(`${API}/${remembered}?fields=id,trashed`)).json(); if (!j.trashed) return j; } catch (e) { if (e.session) throw e; }
+  }
+  const q = encodeURIComponent(`name='${DRIVE_FILE}' and trashed=false`);
+  const j = await (await dfetch(`${API}?q=${q}&orderBy=modifiedTime desc&fields=files(id,ownedByMe)`)).json();
+  const files = j.files || [];
+  return files.find(f => !f.ownedByMe) || files[0] || null;
+}
+async function openFile(id) {
+  const meta = await (await dfetch(`${API}/${id}?fields=id,version`)).json();
+  const body = await (await dfetch(`${API}/${id}?alt=media`)).json();
+  data = normalise(body); fileId = id; fileVersion = meta.version; LS.set('cw-file', id);
+  BASE = JSON.parse(JSON.stringify(data));
+}
+function normalise(d) {
+  d = d || {}; d.app = 'chorewheel'; d.version = d.version || 1;
+  d.chores = d.chores || []; d.log = d.log || []; d.settings = d.settings || {};
+  d.settings.household = d.settings.household || { members: [] }; d.settings.household.members = d.settings.household.members || [];
+  return d;
+}
+function showJoin() {
+  document.getElementById('auth-box').innerHTML = `
+    <div class="big">🏠</div><h1>Welcome</h1>
+    <p>Signed in as <strong style="color:var(--text)">${esc(ME.email)}</strong>. If your partner already shared the chore list with you, open it once here.</p>
+    <button class="btn primary block" onclick="joinViaPicker()">Open the shared list</button>
+    <button class="btn ghost block" style="margin-top:10px" onclick="startFresh()">Start a new chore list</button>
+    <button class="btn ghost block" style="margin-top:10px" onclick="signOut()">Use a different Google account</button>
+    <p id="join-msg" style="margin-top:14px;font-size:13px"></p>`;
+  document.getElementById('auth').classList.remove('hidden');
+}
+function joinViaPicker() {
+  gapi.load('picker', () => {
+    const view = new google.picker.DocsView(google.picker.ViewId.DOCS).setMode(google.picker.DocsViewMode.LIST).setOwnedByMe(false).setQuery(DRIVE_FILE);
+    new google.picker.PickerBuilder().addView(view).setTitle(`Pick ${DRIVE_FILE}`).setOAuthToken(accessToken).setDeveloperKey(PICKER_API_KEY).setAppId(GCP_APP_ID)
+      .setCallback(async d => {
+        if (d.action !== google.picker.Action.PICKED) return;
+        try { await openFile(d.docs[0].id); enterApp(); }
+        catch (e) { document.getElementById('join-msg').textContent = 'Could not open that file: ' + e.message; }
+      }).build().setVisible(true);
+  });
+}
+async function startFresh() {
+  data = emptyData();
+  const meta = { name: DRIVE_FILE, mimeType: 'application/json' };
+  buildUpcoming();
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+  form.append('file', new Blob([JSON.stringify(data)], { type: 'application/json' }));
+  const j = await (await dfetch(`${UPLOAD}?uploadType=multipart&fields=id,version`, { method: 'POST', body: form })).json();
+  fileId = j.id; fileVersion = j.version; LS.set('cw-file', fileId); BASE = JSON.parse(JSON.stringify(data));
+  enterApp();
+}
+async function shareHousehold() {
+  const email = document.getElementById('share-email').value.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+$/.test(email)) { toast('Enter an email address'); return; }
+  if (DEMO) { toast('Sharing works after sign-in'); return; }
+  try {
+    await dfetch(`${API}/${fileId}/permissions?sendNotificationEmail=true&emailMessage=${encodeURIComponent('Open ' + APP_URL + ', sign in with this account and choose "Open the shared list".')}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'writer', type: 'user', emailAddress: email }) });
+    toast(`Shared with ${email}`);
+  } catch (e) { toast('Sharing failed: ' + e.message); }
+}
+
+/* ---- save with 3-way merge (two phones, one file) ---- */
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const pick3 = (b, l, r) => same(l, b) ? r : l;
+function mergeData(base, local, remote) {
+  base = normalise(JSON.parse(JSON.stringify(base || {}))); remote = normalise(remote);
+  const bC = new Map(base.chores.map(c => [c.id, c])), rC = new Map(remote.chores.map(c => [c.id, c])), lC = new Map(local.chores.map(c => [c.id, c]));
+  const chores = [];
+  new Set([...rC.keys(), ...lC.keys()]).forEach(id => {
+    const b = bC.get(id), l = lC.get(id), r = rC.get(id);
+    if (!l) { chores.push(r); return; } if (!r) { chores.push(l); return; }
+    if (!b) { chores.push(l); return; }
+    const out = {};
+    new Set([...Object.keys(b), ...Object.keys(l), ...Object.keys(r)]).forEach(k => { const v = pick3(b[k], l[k], r[k]); if (v !== undefined) out[k] = v; });
+    chores.push(out);
+  });
+  const logs = new Map();
+  [...remote.log, ...local.log].forEach(e => { const p = logs.get(e.id); logs.set(e.id, p ? { ...p, ...e, deleted: p.deleted || e.deleted } : e); });
+  const merged = { ...remote, chores, log: [...logs.values()] };
+  // settings: shallow 3-way
+  merged.settings = { ...remote.settings };
+  Object.keys(local.settings).forEach(k => { merged.settings[k] = pick3(base.settings[k], local.settings[k], remote.settings[k]); });
+  // lastDone must agree with the merged log
+  merged.chores.forEach(c => {
+    const ds = merged.log.filter(e => e.choreId === c.id && !e.deleted).map(e => e.date).sort();
+    if (ds.length) c.lastDone = ds[ds.length - 1];
+  });
+  return normalise(merged);
+}
+function dot(s) { const d = document.getElementById('sync-dot'); d.className = 'status ' + (s || ''); }
+async function save() {
+  buildUpcoming();
+  if (DEMO) { LS.set('cw-demo', JSON.stringify(data)); dot('ok'); return; }
+  if (!fileId) return;
+  if (SAVING) { SAVE_AGAIN = true; return; }
+  SAVING = true; dot('busy');
+  try {
+    do {
+      SAVE_AGAIN = false;
+      const meta = await (await dfetch(`${API}/${fileId}?fields=version`)).json();
+      if (meta.version !== fileVersion) {
+        const remote = await (await dfetch(`${API}/${fileId}?alt=media`)).json();
+        data = mergeData(BASE, data, remote); buildUpcoming();
+      }
+      const j = await (await dfetch(`${UPLOAD}/${fileId}?uploadType=media&fields=version`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).json();
+      fileVersion = j.version; BASE = JSON.parse(JSON.stringify(data));
+    } while (SAVE_AGAIN);
+    dot('ok'); render();
+  } catch (e) { console.error(e); dot('err'); if (!e.session) toast('Not saved — will retry on next change', 'Retry', save); }
+  finally { SAVING = false; }
+}
+async function pullRemote() {
+  if (DEMO || !fileId || SAVING) return;
+  try {
+    const meta = await (await dfetch(`${API}/${fileId}?fields=version`)).json();
+    if (meta.version === fileVersion) return;
+    const remote = await (await dfetch(`${API}/${fileId}?alt=media`)).json();
+    data = same(stripUp(data), stripUp(BASE)) ? normalise(remote) : mergeData(BASE, data, remote);
+    fileVersion = meta.version; BASE = JSON.parse(JSON.stringify(normalise(remote)));
+    render();
+  } catch (e) {}
+}
+const stripUp = d => { const c = { ...d }; delete c.upcoming; return c; };
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pullRemote(); });
+
+function enterApp() {
+  document.getElementById('auth').classList.add('hidden');
+  const mine = data.settings.household.members.find(m => m.email === ME.email);
+  ME.who = mine?.who || LS.get('cw-who') || null;
+  dot('ok'); render();
+  if (!ME.who) askWho();
+  else if (!mine && ME.email) setMe(ME.who);
+}
+function startDemo() {
+  let d = null; try { d = JSON.parse(LS.get('cw-demo') || 'null'); } catch (e) {}
+  data = normalise(d || emptyData()); ME.email = ''; ME.who = LS.get('cw-who') || 'marvin';
+  document.getElementById('auth').classList.add('hidden'); dot('ok'); render();
+}
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+initAuth();
+</script>
+</body>
+</html>
