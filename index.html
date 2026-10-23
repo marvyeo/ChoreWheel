@@ -106,6 +106,10 @@ h2.sec.bad{color:var(--bad)}
 .bar{height:6px;background:var(--card);border-radius:4px;overflow:hidden;margin-top:6px}
 .bar i{display:block;height:100%}
 .hidden{display:none!important}
+/* Sprint 13.2: shared theme tokens (same names in every app, mapped to this app's palette) and the back link */
+:root{--lp-bg:var(--bg);--lp-surface:var(--surface);--lp-text:var(--text);--lp-muted:var(--muted);--lp-accent:var(--accent)}
+.lp-back{flex:none;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;margin-right:6px;border-radius:10px;color:var(--lp-muted);text-decoration:none;font-size:20px}
+.lp-back:hover{color:var(--lp-text)}
 </style>
 </head>
 <body>
@@ -117,11 +121,14 @@ h2.sec.bad{color:var(--bad)}
     <p>The household chore checklist for Marvin &amp; Caroline. Saved to Google Drive.</p>
     <button class="btn primary block" id="signin-btn" onclick="handleSignIn()" disabled style="opacity:.6">Loading…</button>
     <p id="auth-msg" style="margin-top:14px;font-size:13px"></p>
+    <a href="#" onclick="event.preventDefault();startRedirectSignIn()" style="display:inline-block;margin-top:10px;font-size:12px;color:var(--faint);text-decoration:underline">Sign-in window not opening? Try another way</a>
+    <p id="ios-hint" class="hidden" style="margin:10px 0 0;font-size:12px;color:var(--faint)">On iPhone, install it from Safari: tap <b>Share</b>, then <b>Add to Home Screen</b>.</p>
   </div>
 </div>
 
 <header class="top">
   <div class="wrap">
+    <a class="lp-back" href="https://marvyeo.github.io/LifePlan/" aria-label="Back to Life Plan">←</a>
     <div>
       <div class="logo">Chore<b>Wheel</b></div>
       <div class="sub" id="today-label"></div>
@@ -490,7 +497,48 @@ function doneOnDate(id) {
 /* ================== GOOGLE AUTH + DRIVE ================== */
 let tokenClient, accessToken = null, fileId = null, fileVersion = null, BASE = null, SAVING = false, SAVE_AGAIN = false;
 function savedToken() { try { return JSON.parse(LS.get('cw-token') || 'null'); } catch (e) { return null; } }
+
+/* Shared sign-in with Life Plan and the other apps (Sprint 13.4). All apps share the origin https://marvyeo.github.io,
+   so localStorage is shared. Key `lp-sso` = { t, exp, email, scope, client }. Only a drive.file token for the shared
+   client is used or published. */
+const SSO_KEY = 'lp-sso';
+function ssoPublish(t, expiresIn) {
+  let email = ''; try { email = (JSON.parse(LS.get(SSO_KEY) || 'null') || {}).email || ''; } catch (e) {}
+  LS.set(SSO_KEY, JSON.stringify({ t, exp: Date.now() + (Number(expiresIn) || 3599) * 1000, email, scope: SCOPES, client: CLIENT_ID }));
+}
+function ssoClear() { LS.del(SSO_KEY); }
+function ssoRead() {
+  try { const x = JSON.parse(LS.get(SSO_KEY) || 'null'); return x && x.t && x.client === CLIENT_ID && x.scope === SCOPES && x.exp > Date.now() + 60000 ? x : null; } catch (e) { return null; }
+}
+/* Redirect sign-in: fallback for iPhone home-screen apps where the Google pop-up can't open.
+   Needs https://marvyeo.github.io/ChoreWheel/ under "Authorized redirect URIs" on the OAuth client. */
+const REDIRECT_URI = location.origin + location.pathname;
+function startRedirectSignIn() {
+  const p = new URLSearchParams({ client_id: CLIENT_ID, redirect_uri: REDIRECT_URI, response_type: 'token', scope: SCOPES,
+    include_granted_scopes: 'true', prompt: 'select_account', state: 'cw' });
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p.toString();
+}
+function consumeRedirectToken() {
+  if (!location.hash.includes('access_token=')) return false;
+  const h = new URLSearchParams(location.hash.slice(1));
+  history.replaceState(null, '', REDIRECT_URI);
+  if (h.get('state') !== 'cw' || !h.get('access_token')) return false;
+  accessToken = h.get('access_token');
+  const exp = Number(h.get('expires_in')) || 3599;
+  LS.set('cw-token', JSON.stringify({ t: accessToken, exp: Date.now() + exp * 1000, email: (savedToken() || {}).email || '' }));
+  ssoPublish(accessToken, exp);
+  onSignedIn();
+  return true;
+}
+function showIosHint() {
+  const ua = navigator.userAgent;
+  const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const hint = document.getElementById('ios-hint');
+  if (hint && ios && !standalone) hint.classList.remove('hidden');
+}
 function initAuth() {
+  showIosHint();
   if (DEMO) { startDemo(); return; }
   if (typeof google === 'undefined' || !google.accounts || typeof gapi === 'undefined') { setTimeout(initAuth, 120); return; }
   tokenClient = google.accounts.oauth2.initTokenClient({
@@ -499,11 +547,15 @@ function initAuth() {
       if (r.error) { authMsg('Sign-in was cancelled. Tap to try again.'); return; }
       accessToken = r.access_token;
       LS.set('cw-token', JSON.stringify({ t: accessToken, exp: Date.now() + (Number(r.expires_in) || 3599) * 1000, email: (savedToken() || {}).email || '' }));
+      ssoPublish(accessToken, r.expires_in);
       onSignedIn();
     },
   });
+  if (consumeRedirectToken()) return;
   const tok = savedToken();
   if (tok && tok.t && tok.exp > Date.now() + 60000) { accessToken = tok.t; onSignedIn(); return; }
+  const shared = ssoRead(); // signed in through Life Plan or another app: no second sign-in
+  if (shared) { accessToken = shared.t; LS.set('cw-token', JSON.stringify({ t: shared.t, exp: shared.exp, email: (tok && tok.email) || shared.email || '' })); onSignedIn(); return; }
   authMsg('');
 }
 function handleSignIn() {
@@ -518,13 +570,14 @@ function authMsg(m) {
   document.getElementById('auth-msg').textContent = m || '';
 }
 function signOut() {
-  try { if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {}); } catch (e) {}
-  LS.del('cw-token'); LS.del('cw-file'); location.reload();
+  // No token revoke: every app shares one OAuth client, and revoking would cancel the file grants for all of them.
+  LS.del('cw-token'); LS.del('cw-file'); ssoClear(); location.reload();
 }
 async function dfetch(url, opts = {}) {
   const res = await fetch(url, { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${accessToken}` } });
   if (res.status === 401) {
     const tok = savedToken(); if (tok) { tok.exp = 0; LS.set('cw-token', JSON.stringify(tok)); }
+    ssoClear();
     authMsg('Your Google session timed out. Tap to continue — nothing is lost.');
     const e = new Error('session'); e.session = true; throw e;
   }

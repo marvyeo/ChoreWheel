@@ -67,6 +67,11 @@ Household chore checklist and reminder for Marvin and Caroline. Covers weekly, m
 ## Tested (2026-10-20)
 Headless demo: tick and undo, add custom chore, manual due date, month-end interval maths, two-device merge, `upcoming[]` shape, no page errors.
 
+## Shared sign-in and iPhone (2026-10-23, conductor chat "Life Plan Roadmap ver 7", Sprints 13.4 + 13.3 + 13.2)
+- Reads and publishes `lp-sso` in localStorage (a valid `drive.file` token from Life Plan or another app on the shared client means no second sign-in; a 401 or sign-out clears it). **Sign out no longer revokes the Google token**: on the shared client that would cancel the file grants of every app on that Google account.
+- iPhone: "Sign-in window not opening? Try another way" (redirect sign-in, state `cw`) and a "Share → Add to Home Screen" hint on the sign-in card (iOS can't install web apps from a prompt). Needs `https://marvyeo.github.io/ChoreWheel/` under Authorized redirect URIs.
+- 13.2: "←" back to Life Plan in the header, shared theme tokens `--lp-bg/--lp-surface/--lp-text/--lp-muted/--lp-accent`. `viewport-fit=cover` and safe-area padding were already in. `sw.js` cache `chorewheel-v4`.
+
 ## Open items
 - [ ] Marvin: create the empty repo `marvyeo/ChoreWheel` and enable Pages (main / root). Claude pushes the code.
 - [ ] First sign-in (Marvin): "Start a new chore list", set real due dates for aircon and tyres, then Settings → Household → share with Caroline.
@@ -78,3 +83,4 @@ Headless demo: tick and undo, add custom chore, manual due date, month-end inter
 - **2026-10-21:** new icon from the ecosystem icon set (`sw.js` cache bumped).
 - **2026-10-22:** manifest id set to `/ChoreWheel/` (the old `./` made Android treat all apps as one).
 - **2026-10-22:** added Session Rules and `CLAUDE.md`.
+- **2026-10-23 (conductor, Sprints 13.4 + 13.3 + 13.2):** shared `lp-sso` sign-in, no token revoke on sign out, iOS redirect fallback and hint, "←" Life Plan link, theme tokens; `sw.js` cache `chorewheel-v4`. Not tested live.
